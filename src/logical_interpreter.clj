@@ -83,6 +83,7 @@
 	"Evalua si la definicion se encuentra en la base de datos"
 	[consulta listaBdd]
 	;(println "Es simple")
+	;(println consulta)
 	(if (= (some #{consulta} listaBdd) consulta) true false)
 )
 
@@ -100,12 +101,14 @@
               (re-pattern (apply str (interpose "|" (map #(java.util.regex.Pattern/quote %) (keys m)))))
           m))
 
+(comment
 (defn sustituirVariables 
 	"Intercambia los X, Y, Z por los valores ingresados por el usuario"
 	[factRegla variablesConsulta mapaVariables]
 	(let [primerArg (get mapaVariables :X)
 		  segundoArg (get mapaVariables :Y)
 		  tercerArg (get mapaVariables :Z)]
+	;(println variablesRegla)
 	;(println factRegla)
 	;(println variablesConsulta)
 	;(println primerArg)
@@ -114,36 +117,74 @@
 	(replace-map factRegla {"X" primerArg "Y" segundoArg "Z" tercerArg})
 	)
 )
+)
+
+(defn sustituirVariables 
+	"Intercambia las variables por los valores ingresados por el usuario"
+	[factRegla variablesConsulta variablesRegla]
+
+	(println factRegla)
+	(println variablesConsulta)
+	(println variablesRegla)
+	(println (count variablesRegla))
+	(println (first variablesRegla))
+	(println (first variablesConsulta))
+
+	(if (> (count variablesRegla) 0) (do (sustituirVariables 
+												(str/replace factRegla (first variablesRegla) (first variablesConsulta))
+												(rest variablesConsulta)
+												(rest variablesRegla)
+										)
+									  )
+	factRegla
+	)
+)
 
 (defn crearFact
 	"Elabora el fact a cumplir a partir de la regla dada"
-	[variablesConsulta factRegla ordenVariables]
+	[variablesConsulta factRegla variablesRegla]
 	(let [nombreFact (subs factRegla 0 (str/index-of factRegla " "))
-		  ordenFinal (map mapeoVariables (str/split ordenVariables #" "))
-		  ;ordenFinal (vector (replace-map ordenVariables {"X" ":X" "Y" ":Y" "Z" ":Z"}))
-		  ;ordenFinal2 [:Y :Z :X]
-		  mapaVariables (zipmap [:X :Y :Z] (str/split variablesConsulta #" "))]
+		  ;mapaVariables (zipmap [:X :Y :Z] (str/split variablesConsulta #" "))
+		  ]
 		;(println ordenVariables)
 		;(println ordenFinal)
-		(sustituirVariables factRegla variablesConsulta mapaVariables)
+		;(println (first variablesRegla))
+		;(println variablesRegla)
+		;(sustituirVariables factRegla variablesConsulta mapaVariables)
+		(sustituirVariables factRegla variablesConsulta variablesRegla)
 	)
+)
+
+(defn encontrarVars
+	"Funcion para lograr el mapeo correcto y encontrar las variables de la regla dada"
+	[reglaCompleta nombreRegla]
+	;(println reglaCompleta)
+	(if (= nombreRegla (subs reglaCompleta 0 (str/index-of reglaCompleta "("))) (subs reglaCompleta (+(str/index-of reglaCompleta "(")1) (str/index-of reglaCompleta ")")) nil)
+)
+
+(defn buscarVariables
+	"Retorna las variables correspondientes a una regla dada"
+	[nombre listaReglas]
+	(remove nil? (map #(encontrarVars % nombre) listaReglas))
+
 )
 
 (defn buscarRegla
 	"Busca la difinicion de la regla ingresada como consulta para realizar la ejecucion de la misma"
 	[consulta listaReglas]
 	(let [nombreConsulta (subs consulta 0 (str/index-of consulta " "))
-		  variablesConsulta (subs consulta (+(str/index-of consulta " ")1))
+		  variablesConsulta (str/split (subs consulta (+(str/index-of consulta " ")1)) #" ")
 		  listadoFactsRegla (subs (first listaReglas) (+ (str/index-of (first listaReglas) ":") 3))
 		  ordenVariables (strip (subs listadoFactsRegla (str/index-of listadoFactsRegla "(")) ".,()")
-		  fact (crearFact variablesConsulta listadoFactsRegla ordenVariables)
+		  ;fact (crearFact variablesConsulta listadoFactsRegla ordenVariables)
+		  variablesRegla (str/split (first (buscarVariables nombreConsulta listaReglas)) #", ")
 		  ]
+	;(println (first listaReglas))
 	;(println nombreConsulta)
+	;(println variablesRegla)
 	;(println variablesConsulta)
-	;(println listadoFactsRegla)
-	;(println ordenVariables)
-	;(println fact)
-	(crearFact variablesConsulta listadoFactsRegla ordenVariables)
+	;(println (str/split (first variablesRegla) #","))
+	(crearFact variablesConsulta listadoFactsRegla variablesRegla)
 	)
 )
 
@@ -156,12 +197,17 @@
 (defn evaluarVariosFacts
 	"Evalua todos los facts que compone la regla para verificar si se cumple o no"
 	[facts listaBdd]
-	(let [primerFact (subs facts 0 (+(str/index-of facts "),")1))
-		  segundoFact (subs facts (+(str/index-of facts "),")3))]
+	(let [;primerFact (subs facts 0 (+(str/index-of facts "),")1))
+		  ;segundoFact (subs facts (+(str/index-of facts "),")3))
+		  listaFacts (str/split (replace-map facts {"), " ");"}) #";")]
 	;(println "Es compuesta")
 	;(println primerFact)
 	;(println segundoFact)
-	(and (evaluarFact primerFact listaBdd) (evaluarFact segundoFact listaBdd))
+	;(println listaFacts)
+	;(println (str (first listaFacts) "."))
+	;(println (rest listaFacts))
+	(every? true? (map #(evaluarFact % listaBdd) listaFacts))
+	;(and (evaluarFact primerFact listaBdd) (evaluarFact segundoFact listaBdd))
 	)
 )
 
